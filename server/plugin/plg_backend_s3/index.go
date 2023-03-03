@@ -100,8 +100,8 @@ func (s *S3Backend) LoginForm() Form {
 				Name:        "endpoint",
 				Type:        "text",
 				Placeholder: "S3 Endpoint*",
-				Default:     "http://s3-smd.deeproute.cn:80",
-				Value:       "http://s3-smd.deeproute.cn:80",
+				Default:     "http://10.3.8.39:80",
+				Value:       "http://10.3.8.39:80",
 			},
 			{
 				Name:        "advanced",

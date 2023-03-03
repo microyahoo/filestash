@@ -3,6 +3,13 @@ package plg_backend_s3
 import (
 	"context"
 	"fmt"
+	"io"
+	"net/url"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -12,12 +19,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	. "github.com/mickael-kerjean/filestash/server/common"
-	"io"
-	"net/url"
-	"os"
-	"path/filepath"
-	"strings"
-	"time"
 )
 
 var S3Cache AppCache
@@ -30,11 +31,11 @@ type S3Backend struct {
 }
 
 func init() {
-	Backend.Register("s3", S3Backend{})
+	Backend.Register("s3", &S3Backend{})
 	S3Cache = NewAppCache(2, 1)
 }
 
-func (s S3Backend) Init(params map[string]string, app *App) (IBackend, error) {
+func (s *S3Backend) Init(params map[string]string, app *App) (IBackend, error) {
 	if params["encryption_key"] != "" && len(params["encryption_key"]) != 32 {
 		return nil, NewError(fmt.Sprintf("Encryption key needs to be 32 characters (current: %d)", len(params["encryption_key"])), 400)
 	}
@@ -77,54 +78,56 @@ func (s S3Backend) Init(params map[string]string, app *App) (IBackend, error) {
 	return backend, nil
 }
 
-func (s S3Backend) LoginForm() Form {
+func (s *S3Backend) LoginForm() Form {
 	return Form{
 		Elmnts: []FormElement{
-			FormElement{
+			{
 				Name:  "type",
 				Type:  "hidden",
 				Value: "s3",
 			},
-			FormElement{
+			{
 				Name:        "access_key_id",
 				Type:        "text",
 				Placeholder: "Access Key ID*",
 			},
-			FormElement{
+			{
 				Name:        "secret_access_key",
 				Type:        "password",
 				Placeholder: "Secret Access Key*",
 			},
-			FormElement{
+			{
 				Name:        "endpoint",
 				Type:        "text",
 				Placeholder: "S3 Endpoint*",
+				Default:     "http://s3-smd.deeproute.cn:80",
+				Value:       "http://s3-smd.deeproute.cn:80",
 			},
-			FormElement{
+			{
 				Name:        "advanced",
 				Type:        "enable",
 				Placeholder: "Advanced",
 				Target:      []string{"s3_path", "s3_session_token", "s3_encryption_key", "s3_region"},
 			},
-			FormElement{
+			{
 				Id:          "s3_session_token",
 				Name:        "session_token",
 				Type:        "text",
 				Placeholder: "Session Token",
 			},
-			FormElement{
+			{
 				Id:          "s3_path",
 				Name:        "path",
 				Type:        "text",
 				Placeholder: "Path",
 			},
-			FormElement{
+			{
 				Id:          "s3_encryption_key",
 				Name:        "encryption_key",
 				Type:        "text",
 				Placeholder: "Encryption Key",
 			},
-			FormElement{
+			{
 				Id:          "s3_region",
 				Name:        "region",
 				Type:        "text",
@@ -134,7 +137,7 @@ func (s S3Backend) LoginForm() Form {
 	}
 }
 
-func (s S3Backend) Meta(path string) Metadata {
+func (s *S3Backend) Meta(path string) Metadata {
 	if path == "/" {
 		return Metadata{
 			CanCreateFile: NewBool(false),
@@ -146,7 +149,7 @@ func (s S3Backend) Meta(path string) Metadata {
 	return Metadata{}
 }
 
-func (s S3Backend) Ls(path string) (files []os.FileInfo, err error) {
+func (s *S3Backend) Ls(path string) (files []os.FileInfo, err error) {
 	files = make([]os.FileInfo, 0)
 	p := s.path(path)
 
@@ -193,12 +196,12 @@ func (s S3Backend) Ls(path string) (files []os.FileInfo, err error) {
 					FType: "directory",
 				})
 			}
-			return time.Since(startTime) < 5*time.Second
+			return time.Since(startTime) < 30*time.Minute
 		})
 	return files, err
 }
 
-func (s S3Backend) Cat(path string) (io.ReadCloser, error) {
+func (s *S3Backend) Cat(path string) (io.ReadCloser, error) {
 	p := s.path(path)
 	client := s3.New(s.createSession(p.bucket))
 
@@ -232,7 +235,7 @@ func (s S3Backend) Cat(path string) (io.ReadCloser, error) {
 	return obj.Body, nil
 }
 
-func (s S3Backend) Mkdir(path string) error {
+func (s *S3Backend) Mkdir(path string) error {
 	p := s.path(path)
 	client := s3.New(s.createSession(p.bucket))
 
@@ -249,7 +252,7 @@ func (s S3Backend) Mkdir(path string) error {
 	return err
 }
 
-func (s S3Backend) Rm(path string) error {
+func (s *S3Backend) Rm(path string) error {
 	p := s.path(path)
 	client := s3.New(s.createSession(p.bucket))
 	if p.bucket == "" {
@@ -307,7 +310,7 @@ func (s S3Backend) Rm(path string) error {
 	return err
 }
 
-func (s S3Backend) Mv(from string, to string) error {
+func (s *S3Backend) Mv(from string, to string) error {
 	f := s.path(from)
 	t := s.path(to)
 	if from == to {
@@ -402,7 +405,7 @@ func (s S3Backend) Mv(from string, to string) error {
 	return err
 }
 
-func (s S3Backend) Touch(path string) error {
+func (s *S3Backend) Touch(path string) error {
 	p := s.path(path)
 	client := s3.New(s.createSession(p.bucket))
 
@@ -424,7 +427,7 @@ func (s S3Backend) Touch(path string) error {
 	return err
 }
 
-func (s S3Backend) Save(path string, file io.Reader) error {
+func (s *S3Backend) Save(path string, file io.Reader) error {
 	p := s.path(path)
 
 	if p.bucket == "" {
@@ -444,7 +447,7 @@ func (s S3Backend) Save(path string, file io.Reader) error {
 	return err
 }
 
-func (s S3Backend) createSession(bucket string) *session.Session {
+func (s *S3Backend) createSession(bucket string) *session.Session {
 	newParams := map[string]string{"bucket": bucket}
 	for k, v := range s.params {
 		newParams[k] = v
@@ -477,7 +480,7 @@ type S3Path struct {
 	path   string
 }
 
-func (s S3Backend) path(p string) S3Path {
+func (s *S3Backend) path(p string) S3Path {
 	sp := strings.Split(p, "/")
 	bucket := ""
 	if len(sp) > 1 {
@@ -494,7 +497,7 @@ func (s S3Backend) path(p string) S3Path {
 	}
 }
 
-func (s S3Backend) urlEncodedPath(path string) string {
+func (s *S3Backend) urlEncodedPath(path string) string {
 	sp := strings.Split(path, "/")
 
 	var pathElements []string

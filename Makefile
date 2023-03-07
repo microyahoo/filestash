@@ -14,3 +14,9 @@ build_backend:
 
 clean_frontend:
 	rm -rf server/ctrl/static/www/
+
+build_base_image:
+	docker build -t reg.deeproute.ai/deeproute-public/filestash-base:v$(shell date +"%Y%m%d") -f docker/Dockerfile.base .
+
+build_image:
+	docker build -t reg.deeproute.ai/deeproute-public/filestash:v$(shell date +"%Y%m%d") -f docker/Dockerfile .

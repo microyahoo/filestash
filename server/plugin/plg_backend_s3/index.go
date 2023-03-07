@@ -442,6 +442,7 @@ func (s *S3Backend) Save(path string, file io.Reader) error {
 		input.SSECustomerAlgorithm = aws.String("AES256")
 		input.SSECustomerKey = aws.String(s.params["encryption_key"])
 	}
+	uploader.PartSize = 1024 * 1024 * 32
 	_, err := uploader.Upload(&input)
 	return err
 }

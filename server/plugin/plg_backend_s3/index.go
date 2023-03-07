@@ -49,8 +49,8 @@ func (s *S3Backend) Init(params map[string]string, app *App) (IBackend, error) {
 	creds := []credentials.Provider{}
 	if params["access_key_id"] != "" || params["secret_access_key"] != "" {
 		creds = append(creds, &credentials.StaticProvider{Value: credentials.Value{
-			AccessKeyID:     params["access_key_id"],
-			SecretAccessKey: params["secret_access_key"],
+			AccessKeyID:     strings.TrimSpace(params["access_key_id"]),
+			SecretAccessKey: strings.TrimSpace(params["secret_access_key"]),
 			SessionToken:    params["session_token"],
 		}})
 	}
@@ -66,7 +66,7 @@ func (s *S3Backend) Init(params map[string]string, app *App) (IBackend, error) {
 		Region:                        aws.String(params["region"]),
 	}
 	if params["endpoint"] != "" {
-		config.Endpoint = aws.String(params["endpoint"])
+		config.Endpoint = aws.String(strings.TrimSpace(params["endpoint"]))
 	}
 
 	backend := &S3Backend{

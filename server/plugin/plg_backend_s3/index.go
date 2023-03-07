@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -18,6 +17,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+
 	. "github.com/mickael-kerjean/filestash/server/common"
 )
 
@@ -100,8 +100,8 @@ func (s *S3Backend) LoginForm() Form {
 				Name:        "endpoint",
 				Type:        "text",
 				Placeholder: "S3 Endpoint*",
-				Default:     "http://s3-smd.deeproute.cn:80",
-				Value:       "http://s3-smd.deeproute.cn:80",
+				Default:     "http://10.3.8.39:80",
+				Value:       "http://10.3.8.39:80",
 			},
 			{
 				Name:        "advanced",
@@ -170,7 +170,6 @@ func (s *S3Backend) Ls(path string) (files []os.FileInfo, err error) {
 	}
 	client := s3.New(s.createSession(p.bucket))
 
-	startTime := time.Now()
 	err = client.ListObjectsV2PagesWithContext(
 		s.context,
 		&s3.ListObjectsV2Input{
@@ -196,7 +195,7 @@ func (s *S3Backend) Ls(path string) (files []os.FileInfo, err error) {
 					FType: "directory",
 				})
 			}
-			return time.Since(startTime) < 30*time.Minute
+			return aws.BoolValue(objs.IsTruncated)
 		})
 	return files, err
 }

@@ -3,13 +3,14 @@ package common
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/tidwall/gjson"
-	"github.com/tidwall/sjson"
 	"os"
 	"os/exec"
 	"os/user"
 	"strings"
 	"sync"
+
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 )
 
 var (
@@ -60,75 +61,75 @@ func NewConfiguration() Configuration {
 		mu:       sync.Mutex{},
 		cache:    NewKeyValueStore(),
 		Form: []Form{
-			Form{
+			{
 				Title: "general",
 				Elmnts: []FormElement{
-					FormElement{Name: "name", Type: "text", Default: "Filestash", Description: "Name has shown in the UI", Placeholder: "Default: \"Filestash\""},
-					FormElement{Name: "port", Type: "number", Default: 8334, Description: "Port on which the application is available.", Placeholder: "Default: 8334"},
-					FormElement{Name: "host", Type: "text", Description: "The host people need to use to access this server", Placeholder: "Eg: \"demo.filestash.app\""},
-					FormElement{Name: "secret_key", Type: "password", Description: "The key that's used to encrypt and decrypt content. Update this settings will invalidate existing user sessions and shared links, use with caution!"},
-					FormElement{Name: "force_ssl", Type: "boolean", Description: "Enable the web security mechanism called 'Strict Transport Security'"},
-					FormElement{Name: "editor", Type: "select", Default: "emacs", Opts: []string{"base", "emacs", "vim"}, Description: "Keybinding to be use in the editor. Default: \"emacs\""},
-					FormElement{Name: "fork_button", Type: "boolean", Default: true, Description: "Display the fork button in the login screen"},
-					FormElement{Name: "logout", Type: "text", Default: "", Description: "Redirection URL whenever user click on the logout button"},
-					FormElement{Name: "display_hidden", Type: "boolean", Default: false, Description: "Should files starting with a dot be visible by default?"},
-					FormElement{Name: "refresh_after_upload", Type: "boolean", Default: false, Description: "Refresh directory listing after upload"},
-					FormElement{Name: "upload_button", Type: "boolean", Default: false, Description: "Display the upload button on any device"},
-					FormElement{Name: "upload_pool_size", Type: "number", Default: 15, Description: "Maximum number of files upload in parallel (Default: 15)"},
-					FormElement{Name: "filepage_default_view", Type: "select", Default: "grid", Opts: []string{"list", "grid"}, Description: "Default layout for files and folder on the file page"},
-					FormElement{Name: "filepage_default_sort", Type: "select", Default: "type", Opts: []string{"type", "date", "name"}, Description: "Default order for files and folder on the file page"},
-					FormElement{Name: "cookie_timeout", Type: "number", Default: 60 * 24 * 7, Description: "Authentication Cookie expiration in minutes. Default: 60 * 24 * 7 = 1 week"},
-					FormElement{Name: "custom_css", Type: "long_text", Default: "", Description: "Set custom css code for your instance"},
+					{Name: "name", Type: "text", Default: "Filestash", Description: "Name has shown in the UI", Placeholder: "Default: \"Filestash\""},
+					{Name: "port", Type: "number", Default: 8334, Description: "Port on which the application is available.", Placeholder: "Default: 8334"},
+					{Name: "host", Type: "text", Description: "The host people need to use to access this server", Placeholder: "Eg: \"demo.filestash.app\""},
+					{Name: "secret_key", Type: "password", Description: "The key that's used to encrypt and decrypt content. Update this settings will invalidate existing user sessions and shared links, use with caution!"},
+					{Name: "force_ssl", Type: "boolean", Description: "Enable the web security mechanism called 'Strict Transport Security'"},
+					{Name: "editor", Type: "select", Default: "emacs", Opts: []string{"base", "emacs", "vim"}, Description: "Keybinding to be use in the editor. Default: \"emacs\""},
+					{Name: "fork_button", Type: "boolean", Default: true, Description: "Display the fork button in the login screen"},
+					{Name: "logout", Type: "text", Default: "", Description: "Redirection URL whenever user click on the logout button"},
+					{Name: "display_hidden", Type: "boolean", Default: false, Description: "Should files starting with a dot be visible by default?"},
+					{Name: "refresh_after_upload", Type: "boolean", Default: false, Description: "Refresh directory listing after upload"},
+					{Name: "upload_button", Type: "boolean", Default: false, Description: "Display the upload button on any device"},
+					{Name: "upload_pool_size", Type: "number", Default: 15, Description: "Maximum number of files upload in parallel (Default: 15)"},
+					{Name: "filepage_default_view", Type: "select", Default: "grid", Opts: []string{"list", "grid"}, Description: "Default layout for files and folder on the file page"},
+					{Name: "filepage_default_sort", Type: "select", Default: "type", Opts: []string{"type", "date", "name"}, Description: "Default order for files and folder on the file page"},
+					{Name: "cookie_timeout", Type: "number", Default: 60 * 24 * 7, Description: "Authentication Cookie expiration in minutes. Default: 60 * 24 * 7 = 1 week"},
+					{Name: "custom_css", Type: "long_text", Default: "", Description: "Set custom css code for your instance"},
 				},
 			},
-			Form{
+			{
 				Title: "features",
 				Form: []Form{
-					Form{
+					{
 						Title: "api",
 						Elmnts: []FormElement{
-							FormElement{Name: "enable", Type: "boolean", Default: true, Description: "Enable/Disable the API"},
-							FormElement{Name: "api_key", Type: "long_text", Description: "Format: '[mandatory:key] [optional:hostname]'. The hostname is used to enabled CORS for your application.", Placeholder: "foobar *.filestash.app"},
+							{Name: "enable", Type: "boolean", Default: true, Description: "Enable/Disable the API"},
+							{Name: "api_key", Type: "long_text", Description: "Format: '[mandatory:key] [optional:hostname]'. The hostname is used to enabled CORS for your application.", Placeholder: "foobar *.filestash.app"},
 						},
 					},
-					Form{
+					{
 						Title: "share",
 						Elmnts: []FormElement{
-							FormElement{Name: "enable", Type: "boolean", Default: true, Description: "Enable/Disable the share feature"},
-							FormElement{Name: "default_access", Type: "select", Default: "editor", Opts: []string{"editor", "viewer"}, Description: "Default access for shared links"},
-							FormElement{Name: "redirect", Type: "string", Placeholder: "redirection URL", Description: "When set, shared links will perform a redirection to another link. Example: https://example.com?full_path={{path}}"},
+							{Name: "enable", Type: "boolean", Default: true, Description: "Enable/Disable the share feature"},
+							{Name: "default_access", Type: "select", Default: "editor", Opts: []string{"editor", "viewer"}, Description: "Default access for shared links"},
+							{Name: "redirect", Type: "string", Placeholder: "redirection URL", Description: "When set, shared links will perform a redirection to another link. Example: https://example.com?full_path={{path}}"},
 						},
 					},
-					Form{
+					{
 						Title: "protection",
 						Elmnts: []FormElement{
-							FormElement{Name: "iframe", Type: "text", Default: "", Description: "list of domains who can use the application from an iframe. eg: https://www.filestash.app http://example.com"},
+							{Name: "iframe", Type: "text", Default: "", Description: "list of domains who can use the application from an iframe. eg: https://www.filestash.app http://example.com"},
 						},
 					},
 				},
 			},
-			Form{
+			{
 				Title: "log",
 				Elmnts: []FormElement{
-					FormElement{Name: "enable", Type: "enable", Target: []string{"log_level"}, Default: true},
-					FormElement{Name: "level", Type: "select", Default: "INFO", Opts: []string{"DEBUG", "INFO", "WARNING", "ERROR"}, Id: "log_level", Description: "Default: \"INFO\". This setting determines the level of detail at which log events are written to the log file"},
-					FormElement{Name: "telemetry", Type: "boolean", Default: false, Description: "We won't share anything with any third party. This will only to be used to improve Filestash"},
+					{Name: "enable", Type: "enable", Target: []string{"log_level"}, Default: true},
+					{Name: "level", Type: "select", Default: "INFO", Opts: []string{"DEBUG", "INFO", "WARNING", "ERROR"}, Id: "log_level", Description: "Default: \"INFO\". This setting determines the level of detail at which log events are written to the log file"},
+					{Name: "telemetry", Type: "boolean", Default: false, Description: "We won't share anything with any third party. This will only to be used to improve Filestash"},
 				},
 			},
-			Form{
+			{
 				Title: "email",
 				Elmnts: []FormElement{
-					FormElement{Name: "server", Type: "text", Default: "smtp.gmail.com", Description: "Address of the SMTP email server.", Placeholder: "Default: smtp.gmail.com"},
-					FormElement{Name: "port", Type: "number", Default: 587, Description: "Port of the SMTP email server. Eg: 587", Placeholder: "Default: 587"},
-					FormElement{Name: "username", Type: "text", Description: "The username for authenticating to the SMTP server.", Placeholder: "Eg: username@gmail.com"},
-					FormElement{Name: "password", Type: "password", Description: "The password associated with the SMTP username.", Placeholder: "Eg: Your google password"},
-					FormElement{Name: "from", Type: "text", Description: "Email address visible on sent messages.", Placeholder: "Eg: username@gmail.com"},
+					{Name: "server", Type: "text", Default: "smtp.gmail.com", Description: "Address of the SMTP email server.", Placeholder: "Default: smtp.gmail.com"},
+					{Name: "port", Type: "number", Default: 587, Description: "Port of the SMTP email server. Eg: 587", Placeholder: "Default: 587"},
+					{Name: "username", Type: "text", Description: "The username for authenticating to the SMTP server.", Placeholder: "Eg: username@gmail.com"},
+					{Name: "password", Type: "password", Description: "The password associated with the SMTP username.", Placeholder: "Eg: Your google password"},
+					{Name: "from", Type: "text", Description: "Email address visible on sent messages.", Placeholder: "Eg: username@gmail.com"},
 				},
 			},
-			Form{
+			{
 				Title: "auth",
 				Elmnts: []FormElement{
-					FormElement{Name: "admin", Type: "bcrypt", Default: "", Description: "Password of the admin section."},
+					{Name: "admin", Type: "bcrypt", Default: "", Description: "Password of the admin section."},
 				},
 			},
 		},
@@ -195,7 +196,7 @@ type FormIterator struct {
 func (this *Form) Iterator() []FormIterator {
 	slice := make([]FormIterator, 0)
 
-	for i, _ := range this.Elmnts {
+	for i := range this.Elmnts {
 		slice = append(slice, FormIterator{
 			strings.ToLower(this.Title),
 			&this.Elmnts[i],
@@ -300,21 +301,9 @@ func (this *Configuration) Initialise() {
 	}
 	if len(this.Conn) == 0 {
 		this.Conn = []map[string]interface{}{
-			map[string]interface{}{
-				"type":  "sftp",
-				"label": "SFTP",
-			},
-			map[string]interface{}{
+			{
 				"type":  "s3",
 				"label": "S3",
-			},
-			map[string]interface{}{
-				"type":  "ftp",
-				"label": "FTP",
-			},
-			map[string]interface{}{
-				"type":  "webdav",
-				"label": "WebDAV",
 			},
 		}
 		shouldSave = true
@@ -388,7 +377,7 @@ func (this *Configuration) Export() interface{} {
 			tMap := Hooks.Get.Thumbnailer()
 			tArray := make([]string, len(tMap))
 			i := 0
-			for key, _ := range tMap {
+			for key := range tMap {
 				tArray[i] = key
 				i += 1
 			}
@@ -529,7 +518,7 @@ func (this *Configuration) MarshalJSON() ([]byte, error) {
 	form = append(form, Form{
 		Title: "constant",
 		Elmnts: []FormElement{
-			FormElement{Name: "user", Type: "boolean", ReadOnly: true, Value: func() string {
+			{Name: "user", Type: "boolean", ReadOnly: true, Value: func() string {
 				if u, err := user.Current(); err == nil {
 					if u.Username != "" {
 						return u.Username
@@ -538,13 +527,13 @@ func (this *Configuration) MarshalJSON() ([]byte, error) {
 				}
 				return "n/a"
 			}()},
-			FormElement{Name: "emacs", Type: "boolean", ReadOnly: true, Value: func() bool {
+			{Name: "emacs", Type: "boolean", ReadOnly: true, Value: func() bool {
 				if _, err := exec.LookPath("emacs"); err == nil {
 					return true
 				}
 				return false
 			}()},
-			FormElement{Name: "pdftotext", Type: "boolean", ReadOnly: true, Value: func() bool {
+			{Name: "pdftotext", Type: "boolean", ReadOnly: true, Value: func() bool {
 				if _, err := exec.LookPath("pdftotext"); err == nil {
 					return true
 				}

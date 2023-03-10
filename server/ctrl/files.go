@@ -353,18 +353,18 @@ func FileAccess(ctx *App, res http.ResponseWriter, req *http.Request) {
 	SendSuccessResult(res, nil)
 }
 
-func FileSave(ctx *App, res http.ResponseWriter, req *http.Request) {
+func FileSave(ctx *App, resp http.ResponseWriter, req *http.Request) {
 	path, err := PathBuilder(ctx, req.URL.Query().Get("path"))
 	if err != nil {
 		Log.Debug("save::path '%s'", err.Error())
-		SendErrorResult(res, err)
+		SendErrorResult(resp, err)
 		return
 	}
 
-	if model.CanEdit(ctx) == false {
-		if model.CanUpload(ctx) == false {
+	if !model.CanEdit(ctx) {
+		if !model.CanUpload(ctx) {
 			Log.Debug("save::permission 'permission denied'")
-			SendErrorResult(res, ErrPermissionDenied)
+			SendErrorResult(resp, ErrPermissionDenied)
 			return
 		}
 		// for user who cannot edit but can upload => we want to ensure there
@@ -373,13 +373,13 @@ func FileSave(ctx *App, res http.ResponseWriter, req *http.Request) {
 		entries, err := ctx.Backend.Ls(root)
 		if err != nil {
 			Log.Debug("ls::permission 'permission denied'")
-			SendErrorResult(res, ErrPermissionDenied)
+			SendErrorResult(resp, ErrPermissionDenied)
 			return
 		}
 		for i := 0; i < len(entries); i++ {
 			if entries[i].Name() == filename {
 				Log.Debug("ls::permission 'conflict'")
-				SendErrorResult(res, ErrConflict)
+				SendErrorResult(resp, ErrConflict)
 				return
 			}
 		}
@@ -388,19 +388,20 @@ func FileSave(ctx *App, res http.ResponseWriter, req *http.Request) {
 	for _, auth := range Hooks.Get.AuthorisationMiddleware() {
 		if err = auth.Save(ctx, path); err != nil {
 			Log.Info("save::auth '%s'", err.Error())
-			SendErrorResult(res, ErrNotAuthorized)
+			SendErrorResult(resp, ErrNotAuthorized)
 			return
 		}
 	}
 
+	Log.Info("**content length: %d", req.ContentLength)
 	err = ctx.Backend.Save(path, req.Body)
 	req.Body.Close()
 	if err != nil {
 		Log.Debug("save::backend '%s'", err.Error())
-		SendErrorResult(res, NewError(err.Error(), 403))
+		SendErrorResult(resp, NewError(err.Error(), 403))
 		return
 	}
-	SendSuccessResult(res, nil)
+	SendSuccessResult(resp, nil)
 }
 
 func FileMv(ctx *App, res http.ResponseWriter, req *http.Request) {

@@ -3,11 +3,6 @@ package main
 import (
 	_ "embed"
 	"fmt"
-	"github.com/gorilla/mux"
-	. "github.com/mickael-kerjean/filestash/server/common"
-	. "github.com/mickael-kerjean/filestash/server/ctrl"
-	. "github.com/mickael-kerjean/filestash/server/middleware"
-	_ "github.com/mickael-kerjean/filestash/server/plugin"
 	"net/http"
 	"net/http/pprof"
 	"os"
@@ -15,6 +10,12 @@ import (
 	"runtime/debug"
 	"strconv"
 	"sync"
+
+	"github.com/gorilla/mux"
+	. "github.com/mickael-kerjean/filestash/server/common"
+	. "github.com/mickael-kerjean/filestash/server/ctrl"
+	. "github.com/mickael-kerjean/filestash/server/middleware"
+	_ "github.com/mickael-kerjean/filestash/server/plugin"
 )
 
 //go:embed plugin/index.go
@@ -59,11 +60,11 @@ func Init(a App) {
 	// API for File management
 	files := r.PathPrefix("/api/files").Subrouter()
 	middlewares = []Middleware{ApiHeaders, SecureHeaders, WithPublicAPI, SessionStart, LoggedInOnly}
-	files.HandleFunc("/cat", NewMiddlewareChain(FileCat, middlewares, a)).Methods("GET", "HEAD")
+	files.HandleFunc("/cat", NewMiddlewareChain(FileCat, middlewares, a)).Methods("GET", "HEAD") // download a file
 	files.HandleFunc("/zip", NewMiddlewareChain(FileDownloader, middlewares, a)).Methods("GET")
 	middlewares = []Middleware{ApiHeaders, SecureHeaders, SecureOrigin, WithPublicAPI, SessionStart, LoggedInOnly}
 	files.HandleFunc("/cat", NewMiddlewareChain(FileAccess, middlewares, a)).Methods("OPTIONS")
-	files.HandleFunc("/cat", NewMiddlewareChain(FileSave, middlewares, a)).Methods("POST")
+	files.HandleFunc("/cat", NewMiddlewareChain(FileSave, middlewares, a)).Methods("POST") // upload a file
 	files.HandleFunc("/ls", NewMiddlewareChain(FileLs, middlewares, a)).Methods("GET")
 	files.HandleFunc("/mv", NewMiddlewareChain(FileMv, middlewares, a)).Methods("POST")
 	files.HandleFunc("/rm", NewMiddlewareChain(FileRm, middlewares, a)).Methods("POST")

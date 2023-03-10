@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -17,17 +18,39 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/rclone/rclone/fs"
+	"github.com/rclone/rclone/lib/pacer"
+	"github.com/rclone/rclone/lib/pool"
 
 	. "github.com/mickael-kerjean/filestash/server/common"
 )
 
 var S3Cache AppCache
 
+const (
+	minSleep = 10 * time.Millisecond
+)
+
+type options struct {
+	// MaxSizeForCopy      fs.SizeSuffix // Cutoff for switching to chunked upload
+	UploadCutoff        fs.SizeSuffix // Cutoff for switching to chunked upload
+	ChunkSize           fs.SizeSuffix // Chunk size to use for uploading
+	MaxUploadParts      int64         // Maximum number of parts in a multipart upload
+	UploadConcurrency   int           // Concurrency for multipart uploads
+	MemoryPoolFlushTime fs.Duration   // How often internal memory buffer pools will be flushed
+	MemoryPoolUseMmap   bool          // Whether to use mmap buffers in internal memory pool
+	Transfers           int           // Number of file transfers to run in parallel
+}
+
 type S3Backend struct {
 	client  *s3.S3
 	config  *aws.Config
 	params  map[string]string
 	context context.Context
+
+	opt   *options
+	pacer *fs.Pacer  // To pace the API calls
+	pool  *pool.Pool // memory pool
 }
 
 func init() {
@@ -68,12 +91,32 @@ func (s *S3Backend) Init(params map[string]string, app *App) (IBackend, error) {
 	if params["endpoint"] != "" {
 		config.Endpoint = aws.String(strings.TrimSpace(params["endpoint"]))
 	}
+	opt := &options{
+		ChunkSize:    fs.SizeSuffix(1024 * 1024 * 32),  // 32M
+		UploadCutoff: fs.SizeSuffix(200 * 1024 * 1024), // 200M
+		// The maximum size of object we can COPY - this should be 5 GiB but is < 5 GB for b2 compatibility
+		// See https://forum.rclone.org/t/copying-files-within-a-b2-bucket/16680/76
+		// MaxSizeForCopy:      4768 * 1024 * 1024,
+		MaxUploadParts:      10000,
+		UploadConcurrency:   1, // TODO: Currently only supports uploading one file at a time
+		Transfers:           1, // TODO: Currently only supports transferring one file at a time
+		MemoryPoolUseMmap:   false,
+		MemoryPoolFlushTime: fs.Duration(time.Minute),
+	}
 
 	backend := &S3Backend{
 		config:  config,
 		params:  params,
 		client:  s3.New(session.New(config)),
 		context: app.Context,
+		opt:     opt,
+		pacer:   fs.NewPacer(context.Background(), pacer.NewS3(pacer.MinSleep(minSleep))),
+		pool: pool.New(
+			time.Duration(opt.MemoryPoolFlushTime),
+			int(opt.ChunkSize),
+			opt.UploadConcurrency*opt.Transfers,
+			opt.MemoryPoolUseMmap,
+		),
 	}
 	return backend, nil
 }
@@ -100,8 +143,8 @@ func (s *S3Backend) LoginForm() Form {
 				Name:        "endpoint",
 				Type:        "text",
 				Placeholder: "S3 Endpoint*",
-				Default:     "http://10.3.8.39:80",
-				Value:       "http://10.3.8.39:80",
+				Default:     "http://10.9.8.72:80",
+				Value:       "http://10.9.8.72:80",
 			},
 			{
 				Name:        "advanced",
@@ -427,36 +470,50 @@ func (s *S3Backend) Touch(path string) error {
 }
 
 func (s *S3Backend) Save(path string, file io.Reader) error {
+	Log.Info("-----------1------------")
 	p := s.path(path)
 
 	if p.bucket == "" {
 		return ErrNotValid
 	}
+	Log.Info("-----------2------------")
 	uploader := s3manager.NewUploader(s.createSession(path))
 	input := s3manager.UploadInput{
 		Body:   file,
 		Bucket: aws.String(p.bucket),
 		Key:    aws.String(p.path),
 	}
+	Log.Info("-----------9------------")
 	if s.params["encryption_key"] != "" {
 		input.SSECustomerAlgorithm = aws.String("AES256")
 		input.SSECustomerKey = aws.String(s.params["encryption_key"])
 	}
-	uploader.PartSize = 1024 * 1024 * 32
+	Log.Info("**s3 backend: %+v", s)
+	Log.Info("**s3 backend options: %+v", s.opt)
+	uploader.PartSize = int64(s.opt.ChunkSize)
 	_, err := uploader.Upload(&input)
 	return err
 }
 
 func (s *S3Backend) createSession(bucket string) *session.Session {
+	defer func() {
+		if e := recover(); e != nil {
+			Log.Error("***print e: %v", e)
+		}
+	}()
+	Log.Info("-----------3------------")
 	newParams := map[string]string{"bucket": bucket}
 	for k, v := range s.params {
 		newParams[k] = v
 	}
 	c := S3Cache.Get(newParams)
+	Log.Info("-----------4------------: %+v", c)
 	if c == nil {
+		Log.Info("s3 client: %+v, bucket: %s", s.client, bucket)
 		res, err := s.client.GetBucketLocation(&s3.GetBucketLocationInput{
 			Bucket: aws.String(bucket),
 		})
+		Log.Info("-----------5------------")
 		if err != nil {
 			s.config.Region = aws.String("us-east-1")
 		} else {
@@ -467,11 +524,15 @@ func (s *S3Backend) createSession(bucket string) *session.Session {
 			}
 		}
 		S3Cache.Set(newParams, s.config.Region)
+		Log.Info("-----------6------------")
 	} else {
+		Log.Info("-----------7_a------------")
 		s.config.Region = c.(*string)
+		Log.Info("-----------7------------")
 	}
 
 	sess := session.New(s.config)
+	Log.Info("-----------8------------")
 	return sess
 }
 
@@ -480,7 +541,7 @@ type S3Path struct {
 	path   string
 }
 
-func (s *S3Backend) path(p string) S3Path {
+func (s *S3Backend) path(p string) *S3Path {
 	sp := strings.Split(p, "/")
 	bucket := ""
 	if len(sp) > 1 {
@@ -491,7 +552,7 @@ func (s *S3Backend) path(p string) S3Path {
 		path = strings.Join(sp[2:], "/")
 	}
 
-	return S3Path{
+	return &S3Path{
 		bucket,
 		path,
 	}
